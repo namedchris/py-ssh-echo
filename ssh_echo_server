@@ -1,0 +1,72 @@
+import asyncio
+import asyncssh
+import os
+import time
+from typing import Callable, Optional
+
+HOST_KEY_FILE = 'ssh_host_key'
+DEFAULT_PORT = 2222
+
+if not os.path.exists(HOST_KEY_FILE):
+    asyncssh.generate_private_key('ssh-rsa', filename=HOST_KEY_FILE)
+    print(f'Generated SSH host key: {HOST_KEY_FILE}')
+
+class EchoSSHServer(asyncssh.SSHServer):
+    def __init__(self, session_tracker: Optional[Callable] = None):
+        self.session_tracker = session_tracker
+
+    def connection_made(self, conn):
+        print('Connection from', conn.get_extra_info('peername'))
+
+    def connection_lost(self, exc):
+        print('Connection closed')
+
+    def password_auth_supported(self):
+        return True
+
+    async def validate_password(self, username, password):
+        return True
+
+    def session_requested(self):
+        return EchoSSHSession(self.session_tracker)
+
+class EchoSSHSession(asyncssh.SSHServerSession):
+    def __init__(self, tracker=None):
+        self._chan = None
+        self._start_time = None
+        self._data_len = 0
+        self._tracker = tracker
+
+    def connection_made(self, chan):
+        self._chan = chan
+        self._start_time = time.time()
+
+    def session_started(self):
+        self._username = self._chan.get_extra_info('username')
+        self._peername = self._chan.get_extra_info('peername')
+
+    def data_received(self, data, datatype):
+        self._data_len += len(data)
+        self._chan.write(data)
+
+    def eof_received(self):
+        self._chan.exit(0)
+        return True
+
+    def connection_lost(self, exc):
+        if self._tracker:
+            duration = time.time() - self._start_time
+            self._tracker({
+                "username": getattr(self, '_username', 'unknown'),
+                "ip": self._peername[0] if self._peername else 'unknown',
+                "bytes_received": self._data_len,
+                "duration_sec": duration,
+            })
+
+async def start_echo_server(port=DEFAULT_PORT, session_tracker: Optional[Callable] = None):
+    """Start the echo SSH server and return the server object."""
+    server = await asyncssh.listen('127.0.0.1', port,
+                                   server_factory=lambda: EchoSSHServer(session_tracker),
+                                   server_host_keys=[HOST_KEY_FILE])
+    print(f"SSH Echo Server listening on localhost:{port}")
+    return server
