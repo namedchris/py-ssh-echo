@@ -1,4 +1,3 @@
-import asyncio
 import asyncssh
 import os
 import time
@@ -8,8 +7,9 @@ HOST_KEY_FILE = 'ssh_host_key'
 DEFAULT_PORT = 2222
 
 if not os.path.exists(HOST_KEY_FILE):
-    asyncssh.generate_private_key('ssh-rsa', filename=HOST_KEY_FILE)
-    print(f'Generated SSH host key: {HOST_KEY_FILE}')
+    key = asyncssh.generate_private_key('ssh-rsa')
+    with open(HOST_KEY_FILE, 'wb') as f:
+        f.write(key.export_private_key(format_name='openssh'))
 
 class EchoSSHServer(asyncssh.SSHServer):
     def __init__(self, session_tracker: Optional[Callable] = None):
@@ -19,7 +19,7 @@ class EchoSSHServer(asyncssh.SSHServer):
         print('Connection from', conn.get_extra_info('peername'))
 
     def connection_lost(self, exc):
-        print('Connection closed')
+        print(f"Connection closed: {exc}")
 
     def password_auth_supported(self):
         return True
@@ -31,37 +31,35 @@ class EchoSSHServer(asyncssh.SSHServer):
         return EchoSSHSession(self.session_tracker)
 
 class EchoSSHSession(asyncssh.SSHServerSession):
-    def __init__(self, tracker=None):
+    def __init__(self, tracker):
+        self._input = ''
         self._chan = None
-        self._start_time = None
-        self._data_len = 0
+        self._peername = None
         self._tracker = tracker
+        self._buffer = ''
 
     def connection_made(self, chan):
         self._chan = chan
-        self._start_time = time.time()
+        self._peername = chan.get_extra_info('peername')
 
-    def session_started(self):
-        self._username = self._chan.get_extra_info('username')
-        self._peername = self._chan.get_extra_info('peername')
+    def connection_lost(self,exc):
+        self._tracker({
+            "ip": self._peername[0] if self._peername else 'unknown',
+            "input": self._input,
+        })
+
+    def shell_requested(self):
+        return True  # Accept interactive shell
 
     def data_received(self, data, datatype):
-        self._data_len += len(data)
-        self._chan.write(data)
-
-    def eof_received(self):
-        self._chan.exit(0)
-        return True
-
-    def connection_lost(self, exc):
-        if self._tracker:
-            duration = time.time() - self._start_time
-            self._tracker({
-                "username": getattr(self, '_username', 'unknown'),
-                "ip": self._peername[0] if self._peername else 'unknown',
-                "bytes_received": self._data_len,
-                "duration_sec": duration,
-            })
+        self._input += data
+        self._buffer += data
+        if '\n' in self._buffer:
+            lines = self._buffer.split('\n')
+            for line in lines[:-1]:
+                if self._chan:
+                    self._chan.write(f"{line}\n> ")
+            self._buffer = lines[-1]
 
 async def start_echo_server(port=DEFAULT_PORT, session_tracker: Optional[Callable] = None):
     """Start the echo SSH server and return the server object."""
@@ -69,4 +67,5 @@ async def start_echo_server(port=DEFAULT_PORT, session_tracker: Optional[Callabl
                                    server_factory=lambda: EchoSSHServer(session_tracker),
                                    server_host_keys=[HOST_KEY_FILE])
     print(f"SSH Echo Server listening on localhost:{port}")
+
     return server
