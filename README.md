@@ -90,6 +90,10 @@ pip install -r requirements.txt
 ```bash
 pytest
 ```
+### Run the tests with logs:
+'''bash
+pytest -s
+'''
 
 ---
 
@@ -101,13 +105,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contributing
 
-1. Fork the repository.
-2. Create a new branch.
-3. Make your changes.
-4. Create a pull request.
+1. Create a new branch.
+2. Make your changes.
+3. Create a pull request.
 
 ---
 
 ## Author
 
-Your Name - [you@example.com](mailto:you@example.com)
+Chris Morgan
