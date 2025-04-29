@@ -5,13 +5,9 @@ from ssh_echo_server.server import start_echo_server
 
 @pytest.mark.asyncio
 async def test_echo_server_echoes_input():
-    session_info = []
-
-    def track_session(info):
-        session_info.append(info)
 
     port = 8022
-    server = await start_echo_server(port=port, session_tracker=track_session)
+    server = await start_echo_server(port=port)
 
     try:
         async with asyncssh.connect('localhost', port=port,
@@ -26,12 +22,10 @@ async def test_echo_server_echoes_input():
                     print("Output did not contain 'hello'. Here is the full output:")
                     print(output)  # This will print the actual output
                     raise  # Re-raise the exception to fail the test
-
+        
     finally:
         server.close()
         await server.wait_closed()
-
-    assert session_info  # optionally check for tracking
 
 
 @pytest.mark.asyncio

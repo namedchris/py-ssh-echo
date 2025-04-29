@@ -1,6 +1,6 @@
 # py-ssh-echo
 
-A simple **AsyncSSH-based echo SSH server** designed for testing purposes. This server will echo any input sent over SSH, and track basic session information (e.g., username, IP, bytes received, session duration).
+A simple **AsyncSSH-based echo SSH server** designed for testing purposes. This server provides an interactive shell and will echo any input sent over SSH, and track basic session information (e.g., username, IP, bytes received, session duration).
 
 ---
 
