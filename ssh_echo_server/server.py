@@ -6,11 +6,8 @@ from typing import Callable, Optional
 HOST_KEY_FILE = 'ssh_host_key'
 DEFAULT_PORT = 2222
 
-if not os.path.exists(HOST_KEY_FILE):
-    key = asyncssh.generate_private_key('ssh-rsa')
-    with open(HOST_KEY_FILE, 'wb') as f:
-        f.write(key.export_private_key(format_name='openssh'))
-
+key = asyncssh.generate_private_key('ssh-rsa')
+   
 class EchoSSHServer(asyncssh.SSHServer):
     def __init__(self, session_tracker: Optional[Callable] = None):
         self.session_tracker = session_tracker
@@ -65,7 +62,7 @@ async def start_echo_server(port=DEFAULT_PORT, session_tracker: Optional[Callabl
     """Start the echo SSH server and return the server object."""
     server = await asyncssh.listen('127.0.0.1', port,
                                    server_factory=lambda: EchoSSHServer(session_tracker),
-                                   server_host_keys=[HOST_KEY_FILE])
+                                   server_host_keys=key)
     print(f"SSH Echo Server listening on localhost:{port}")
 
     return server

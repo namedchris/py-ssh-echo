@@ -6,7 +6,7 @@ A simple **AsyncSSH-based echo SSH server** designed for testing purposes. This 
 
 ## Features
 
-- **Echoes input**: Whatever you send to the server is echoed back.
+- **Echoes input**: Whatever you send to the server is echoed back, line by linepy.
 - **Tracks session metadata**: Collects details like username, IP address, bytes received, and session duration.
 - **Easy to use**: Can be run as a standalone server or imported as a module in other Python projects.
 - **Customizable**: Choose the port for the server, and track session details through a callback function.
